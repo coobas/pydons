@@ -1,6 +1,5 @@
 from hdf5storage.Marshallers import TypeMarshaller
-from pydons import StrONGDict
-
+# import pydons
 import h5py
 
 from hdf5storage.utilities import *
@@ -9,16 +8,16 @@ from hdf5storage.lowlevel import write_data, read_data
 
 
 class StrONGDictMarshaller(TypeMarshaller):
-    def __init__(self):
+    def __init__(self, StrONGDictType):
         TypeMarshaller.__init__(self)
         self.python_attributes |= set(['Python.Fields'])
         self.matlab_attributes |= set(['MATLAB_class'])
-        self.types = [StrONGDict]
+        self.types = [StrONGDictType]
         self.python_type_strings = ['StrONGDict']
-        self.__MATLAB_classes = {StrONGDict: 'struct'}
+        self.__MATLAB_classes = {StrONGDictType: 'struct'}
         # Set matlab_classes to empty since NumpyScalarArrayMarshaller
         # handles Groups by default now.
-        self.matlab_classes = list('struct')
+        self.matlab_classes = list(self.__MATLAB_classes.values())
 
     def write(self, f, grp, name, data, type_string, options):
         # If the group doesn't exist, it needs to be created. If it
@@ -65,10 +64,8 @@ class StrONGDictMarshaller(TypeMarshaller):
 
         # If we are storing python metadata, we need to set the
         # 'Python.Fields' Attribute to be all the keys. They will be
-        # sorted for convenience
         if options.store_python_metadata:
             fields = list(data.keys())
-            fields.sort()
             set_attribute_string_array(grp[name], 'Python.Fields',
                                        fields)
 
@@ -79,9 +76,13 @@ class StrONGDictMarshaller(TypeMarshaller):
 
         tp = type(data)
         if options.matlab_compatible and tp in self.types \
-                and self.types.index(tp) in self.__MATLAB_classes:
+                and tp in self.__MATLAB_classes:
             set_attribute_string(grp[name], 'MATLAB_class',
-                                 self.__MATLAB_classes[self.types.index(tp)])
+                                 self.__MATLAB_classes[tp])
+            # TODO this does not work because Matlab stores field names
+            # in a weird way (H5T_VLEN(:,:) array of H5T_STRING(1))
+            # set_attribute_string_array(grp[name], 'MATLAB_fields',
+            #                            fields)
         else:
             del_attribute(grp[name], 'MATLAB_class')
 
@@ -109,7 +110,7 @@ class StrONGDictMarshaller(TypeMarshaller):
         # the whole reading process, the reading is wrapped in a try
         # block that just catches exceptions and then does nothing about
         # them (nothing needs to be done).
-        data = StrONGDict()
+        data = self.types[0]()
         for k in grp[name]:
             # We must exclude group_for_references
             if grp[name][k].name == options.group_for_references:

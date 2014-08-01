@@ -3,6 +3,8 @@
 
 from collections import OrderedDict as _OrderedDict
 import numbers
+import pydons.hdf5util
+import hdf5storage
 
 
 class StrONGDict(_OrderedDict):
@@ -28,6 +30,8 @@ class StrONGDict(_OrderedDict):
 
     def __init__(self, values=None):
         super(StrONGDict, self).__init__()
+        self.__HDF5MARSHALLERS = hdf5storage.MarshallerCollection(
+            [pydons.hdf5util.StrONGDictMarshaller(self.__class__)])
 
     def __getattr__(self, item):
         if item in self:
@@ -223,3 +227,14 @@ class StrONGDict(_OrderedDict):
         with File(filename, 'r') as fh5:
             self.__get_dict_from_h5(self, fh5)
         return self
+
+    def savemat(self, file_name, name='self', truncate_existing=False, **kwargs):
+        mdict = {unicode(name): self}
+        hdf5storage.savemat(file_name, mdict, truncate_existing=truncate_existing,
+                            marshaller_collection=self.__HDF5MARSHALLERS)
+
+    @classmethod
+    def loadmat(cls, file_name, name='self'):
+        path = '/' + name
+        mc = hdf5storage.MarshallerCollection([pydons.hdf5util.StrONGDictMarshaller(cls)])
+        return hdf5storage.read(path, file_name, marshaller_collection=mc)
