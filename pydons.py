@@ -41,11 +41,11 @@ class StrONGDict(_OrderedDict):
         super(StrONGDict, self).__setitem__(item, value)
 
     def __setattr__(self, item, value):
-        if item in self:
-            self.__setitem__(item, value)
-        else:
+        if item.startswith('_'):
             # the default behavior must be implemented
             self.__dict__[item] = value
+        else:
+            self.__setitem__(item, value)
 
     def __delattr__(self, item):
         if item in self:
