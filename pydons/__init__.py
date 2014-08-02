@@ -20,6 +20,17 @@ class MatStruct(_OrderedDict):
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
                              ['diff', 'saveh5', 'loadh5',
                               'savemat', 'loadmat'])
+    __MC = None
+
+    @property
+    def __mc(self):
+        if self.__class__.__MC is None:
+            self.__class__.__MC = hdf5storage.MarshallerCollection(
+                                      [pydons.hdf5util.MatStructMarshaller(self.__class__)])
+        return self.__class__.__MC
+    @__mc.setter
+    def __mc(self, value):
+        self.__class__.__MC = value
 
     @classmethod
     def __is_valid_key(cls, key):
@@ -42,8 +53,6 @@ class MatStruct(_OrderedDict):
 
     def __init__(self, *args, **kwargs):
         super(MatStruct, self).__init__(*args, **kwargs)
-        self.__HDF5MARSHALLERS = hdf5storage.MarshallerCollection(
-            [pydons.hdf5util.MatStructMarshaller(self.__class__)])
 
     def __getattr__(self, item):
         if item in self:
@@ -205,7 +214,7 @@ class MatStruct(_OrderedDict):
         :param path: group path to store fields to
         """
         hdf5storage.write(self, path, file_name, truncate_existing=truncate_existing,
-                          marshaller_collection=self.__HDF5MARSHALLERS,
+                          marshaller_collection=self.__mc,
                           matlab_compatible=matlab_compatible)
 
     @classmethod
@@ -216,9 +225,8 @@ class MatStruct(_OrderedDict):
         :param path: path toread data from
         """
         # TODO how to preserve order?
-        mc = hdf5storage.MarshallerCollection([pydons.hdf5util.MatStructMarshaller(cls)])
         return hdf5storage.read(path, file_name,
-                                marshaller_collection=mc,
+                                marshaller_collection=cls().__mc,
                                 matlab_compatible=matlab_compatible)
 
     def savemat(self, file_name, path='/', truncate_existing=False, **kwargs):
