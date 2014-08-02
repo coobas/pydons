@@ -13,7 +13,7 @@ class MatStructMarshaller(TypeMarshaller):
         self.python_attributes |= set(['Python.Fields'])
         self.matlab_attributes |= set(['MATLAB_class'])
         self.types = [MatStructType]
-        self.python_type_strings = ['MatStruct']
+        self.python_type_strings = ['{}.{}'.format(MatStructType.__module__, MatStructType.__name__)]
         self.__MATLAB_classes = {MatStructType: 'struct'}
         # Set matlab_classes to empty since NumpyScalarArrayMarshaller
         # handles Groups by default now.
