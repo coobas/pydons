@@ -124,6 +124,7 @@ class MatStruct(_OrderedDict):
         common_keys = self_keys & other_keys
         res = MatStruct()
         nnorm = 0
+        # TODO take care of nan's
         if mode == 'norm':
             if 'diff_norm' in self or 'diff_max' in self:
                 raise Exception('diff_norm and diff_max cannot be in the compared dict')
