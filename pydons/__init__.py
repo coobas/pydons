@@ -30,8 +30,12 @@ class MatStruct(_OrderedDict):
             raise KeyError('"{}" conflicts with a method name'.format(key))
         if not key[0].isalpha():
             raise KeyError('Key does not start with an alphabetic character')
-        if any((not (ch.isalnum() or ch in '_-') for ch in key[1:])):
-            raise KeyError('Keys must be of alphanumeric characters or _ or -')
+        if any((not (ch.isalnum() or ch in '_') for ch in key[1:])):
+            raise KeyError('Keys must be of alphanumeric characters or _')
+        try:
+            key.decode('ascii')
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            raise KeyError('Keys must be ascii characters only')
         return True
 
     def __init__(self, values=None):
