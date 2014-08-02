@@ -14,6 +14,7 @@ class MatStruct(_OrderedDict):
     * Get and set fields as properties (obj.field)
     * String-only fields
     * Save and load to/from Matlab-compatible HDF5 files
+    * __repr__ is customized for ipython visual output
     """
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
@@ -92,17 +93,23 @@ class MatStruct(_OrderedDict):
         return d
 
     def __repr__(self):
-        '''Custom MatStruct __str__ for IPython
+        '''Custom MatStruct __repr__ for IPython
         '''
         if self:
             res = []
-            fmt = '%%%ds: %%s' % (max(map(len, self.keys())))
+            # adjust indentation, maximum 16 characters
+            nspace = max((len(k) for k in self.keys()))
+            nspace = nspace if nspace <= 16 else 0
+            fmt = '%%%ds: %%s' % nspace
             for k, v in self.items():
                 res.append(fmt % (k, v))
-            res = '{' + '\n '.join(res) + '}'
+            res = '\n'.join(res)
         else:
-            res = '{}'
+            res = '{}.{}()'.format(self.__module__, self.__class__.__name__)
         return res
+
+    def __str__(self):
+        return repr(self)
 
     def diff(self, other, mode='norm'):
         '''Find differences to another MatStruct, ignoring the keys order
