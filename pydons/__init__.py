@@ -18,7 +18,8 @@ class MatStruct(_OrderedDict):
     """
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
-                             ['diff', 'save_h5', 'load_h5'])
+                             ['diff', 'saveh5', 'loadh5',
+                              'savemat', 'loadmat'])
 
     @classmethod
     def __is_valid_key(cls, key):
@@ -39,8 +40,8 @@ class MatStruct(_OrderedDict):
             raise KeyError('Keys must be ascii characters only')
         return True
 
-    def __init__(self, values=None):
-        super(MatStruct, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(MatStruct, self).__init__(*args, **kwargs)
         self.__HDF5MARSHALLERS = hdf5storage.MarshallerCollection(
             [pydons.hdf5util.MatStructMarshaller(self.__class__)])
 
@@ -196,63 +197,44 @@ class MatStruct(_OrderedDict):
                 res['diff_norm'] /= nnorm
         return res
 
-    @classmethod
-    def __save_dict_to_h5(cls, data, group):
-        if not isinstance(data, (cls, dict)):
-            raise ValueError('data must be a dict type')
-        for k, v in data.items():
-            if isinstance(v, (cls, dict)):
-                cls.__save_dict_to_h5(v, group.create_group(str(k)))
-            elif isinstance(v, (list, tuple)):
-                raise ValueError('list and tuples are not supported (yet)')
-            else:
-                group.create_dataset(str(k), data=v)
+    def saveh5(self, file_name, path='/', truncate_existing=False,
+               matlab_compatible=False, **kwargs):
+        """Save to an HDF5 file
 
-    @classmethod
-    def __get_dict_from_h5(cls, d, group):
-        if not isinstance(d, (cls, dict)):
-            raise ValueError('data must be a dict type')
-        for k, v in group.items():
-            if hasattr(v, 'items'):
-                # this is a group
-                d[k] = cls()
-                cls.__get_dict_from_h5(d[k], v)
-            else:
-                if v.shape:
-                    d[k] = v[:]
-                else:
-                    # empty shape = scalar
-                    d[k] = v[()]
-
-    def save_h5(self, filename, mode='w'):
-        """Serialize to an HDF5 file
-
-        :param filename: output file name
-        :param mode: file open mode, typically 'w' or 'a'
+        :param file_name: output file name
+        :param path: group path to store fields to
         """
-        from h5py import File
-        with File(filename, mode) as fh5:
-            self.__save_dict_to_h5(self, fh5)
+        hdf5storage.write(self, path, file_name, truncate_existing=truncate_existing,
+                          marshaller_collection=self.__HDF5MARSHALLERS,
+                          matlab_compatible=matlab_compatible)
 
     @classmethod
-    def load_h5(cls, filename):
-        """Deserialize from an HDF5 file (created by save_h5)
+    def loadh5(cls, file_name, path='/', matlab_compatible=False, **kwargs):
+        """Load from an HDF5 file
 
-        :param filename: input file name
+        :param file_name: file name
+        :param path: path toread data from
         """
-        from h5py import File
-        self = cls()
-        with File(filename, 'r') as fh5:
-            self.__get_dict_from_h5(self, fh5)
-        return self
-
-    def savemat(self, file_name, name='self', truncate_existing=False, **kwargs):
-        mdict = {unicode(name): self}
-        hdf5storage.savemat(file_name, mdict, truncate_existing=truncate_existing,
-                            marshaller_collection=self.__HDF5MARSHALLERS)
-
-    @classmethod
-    def loadmat(cls, file_name, name='self'):
-        path = '/' + name
+        # TODO how to preserve order?
         mc = hdf5storage.MarshallerCollection([pydons.hdf5util.MatStructMarshaller(cls)])
-        return hdf5storage.read(path, file_name, marshaller_collection=mc)
+        return hdf5storage.read(path, file_name,
+                                marshaller_collection=mc,
+                                matlab_compatible=matlab_compatible)
+
+    def savemat(self, file_name, path='/', truncate_existing=False, **kwargs):
+        """Save to a Matlab (HDF5 format) file
+
+        :param file_name: output file name
+        :param path: group path to store fields to
+        """
+        self.saveh5(file_name, path, truncate_existing=truncate_existing,
+                    matlab_compatible=True, **kwargs)
+
+    @classmethod
+    def loadmat(cls, file_name, path='/', **kwargs):
+        """Load from a Matlab (HDF5 format) file
+
+        :param file_name: file name
+        :param path: path toread data from
+        """
+        return cls.loadh5(file_name, path, matlab_compatible=True, **kwargs)
