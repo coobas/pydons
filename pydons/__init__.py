@@ -7,8 +7,14 @@ import pydons.hdf5util
 import hdf5storage
 
 
-class StrONGDict(_OrderedDict):
-    """String key ordered dict Next Generation"""
+class MatStruct(_OrderedDict):
+    """Matlab-like struct container
+
+    Features:
+    * Get and set fields as properties (obj.field)
+    * String-only fields
+    * Save and load to/from Matlab-compatible HDF5 files
+    """
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
                              ['diff', 'save_h5', 'load_h5'])
@@ -29,9 +35,9 @@ class StrONGDict(_OrderedDict):
         return True
 
     def __init__(self, values=None):
-        super(StrONGDict, self).__init__()
+        super(MatStruct, self).__init__()
         self.__HDF5MARSHALLERS = hdf5storage.MarshallerCollection(
-            [pydons.hdf5util.StrONGDictMarshaller(self.__class__)])
+            [pydons.hdf5util.MatStructMarshaller(self.__class__)])
 
     def __getattr__(self, item):
         if item in self:
@@ -42,7 +48,7 @@ class StrONGDict(_OrderedDict):
     def __setitem__(self, item, value):
         if not item in self:
             self.__is_valid_key(item)
-        super(StrONGDict, self).__setitem__(item, value)
+        super(MatStruct, self).__setitem__(item, value)
 
     def __setattr__(self, item, value):
         if item.startswith('_'):
@@ -82,7 +88,7 @@ class StrONGDict(_OrderedDict):
         return d
 
     def __repr__(self):
-        '''Custom StrONGDict __str__ for IPython
+        '''Custom MatStruct __str__ for IPython
         '''
         if self:
             res = []
@@ -95,9 +101,9 @@ class StrONGDict(_OrderedDict):
         return res
 
     def diff(self, other, mode='norm'):
-        '''Find differences to another StrONGDict, ignoring the keys order
+        '''Find differences to another MatStruct, ignoring the keys order
 
-        :param other: StrONGDict object to compare to
+        :param other: MatStruct object to compare to
         '''
         from numpy.linalg import norm
         from numpy import ndarray
@@ -105,7 +111,7 @@ class StrONGDict(_OrderedDict):
         self_keys = set(self.keys())
         other_keys = set(other.keys())
         common_keys = self_keys & other_keys
-        res = StrONGDict()
+        res = MatStruct()
         nnorm = 0
         if mode == 'norm':
             if 'diff_norm' in self or 'diff_max' in self:
@@ -236,5 +242,5 @@ class StrONGDict(_OrderedDict):
     @classmethod
     def loadmat(cls, file_name, name='self'):
         path = '/' + name
-        mc = hdf5storage.MarshallerCollection([pydons.hdf5util.StrONGDictMarshaller(cls)])
+        mc = hdf5storage.MarshallerCollection([pydons.hdf5util.MatStructMarshaller(cls)])
         return hdf5storage.read(path, file_name, marshaller_collection=mc)

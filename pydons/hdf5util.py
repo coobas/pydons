@@ -7,14 +7,14 @@ from hdf5storage.utilities import *
 from hdf5storage.lowlevel import write_data, read_data
 
 
-class StrONGDictMarshaller(TypeMarshaller):
-    def __init__(self, StrONGDictType):
+class MatStructMarshaller(TypeMarshaller):
+    def __init__(self, MatStructType):
         TypeMarshaller.__init__(self)
         self.python_attributes |= set(['Python.Fields'])
         self.matlab_attributes |= set(['MATLAB_class'])
-        self.types = [StrONGDictType]
-        self.python_type_strings = ['StrONGDict']
-        self.__MATLAB_classes = {StrONGDictType: 'struct'}
+        self.types = [MatStructType]
+        self.python_type_strings = ['MatStruct']
+        self.__MATLAB_classes = {MatStructType: 'struct'}
         # Set matlab_classes to empty since NumpyScalarArrayMarshaller
         # handles Groups by default now.
         self.matlab_classes = list(self.__MATLAB_classes.values())
