@@ -1,7 +1,19 @@
 '''pydons = Python data manimulation add-ons
 '''
 
-from collections import OrderedDict as _OrderedDict
+# import OrderedDict for Python < 2.7
+# In Python 2.6 or Jython 2.5, ordereddict must be installed
+for _collections in ('collections', 'ordereddict'):
+    try:
+        _collectionsModule = __import__(_collections)
+        _OrderedDict = _collectionsModule.OrderedDict
+    except:
+        pass
+try:
+    _OrderedDict
+    del _collectionsModule
+except NameError:
+    raise ImportError('No OrderedDict module found')
 import numbers
 import pydons.hdf5util
 import hdf5storage
