@@ -30,7 +30,8 @@ class MatStruct(_OrderedDict):
     """
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
-                             ['diff', 'saveh5', 'loadh5',
+                             ['insert_after', 'insert_before',
+                              'diff', 'saveh5', 'loadh5',
                               'savemat', 'loadmat'])
     __MC = None
 
