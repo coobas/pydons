@@ -48,7 +48,7 @@ class MatStruct(_OrderedDict):
         if not key:
             raise KeyError('Key cannot be empty')
         if key in cls.__FORBIDDEN_KEYS:
-            raise KeyError('"{}" conflicts with a method name'.format(key))
+            raise KeyError('"%s" conflicts with a method name' % (key))
         if not key[0].isalpha():
             raise KeyError('Key does not start with an alphabetic character')
         if any((not (ch.isalnum() or ch in '_') for ch in key[1:])):
@@ -66,7 +66,7 @@ class MatStruct(_OrderedDict):
         if item in self:
             return self[item]
         else:
-            raise AttributeError('no attribute "{}"'.format(item))
+            raise AttributeError('no attribute "%s"' % item)
 
     def __setitem__(self, item, value):
         if not item in self:
@@ -84,7 +84,7 @@ class MatStruct(_OrderedDict):
         if item in self:
             del self[item]
         else:
-            raise AttributeError("no attribute '{}'".format(item))
+            raise AttributeError("no attribute '%s'" % (item))
 
     # insertion inspired by https://gist.github.com/jaredks/6276032
     def __insertion(self, link_prev, key_value):
@@ -123,7 +123,7 @@ class MatStruct(_OrderedDict):
                 res.append(fmt % (k, v))
             res = '\n'.join(res)
         else:
-            res = '{}.{}()'.format(self.__module__, self.__class__.__name__)
+            res = '%s.%s()' % (self.__module__, self.__class__.__name__)
         return res
 
     def __str__(self):
@@ -163,9 +163,9 @@ class MatStruct(_OrderedDict):
                             res[key] = 1j
                             res['diff_norm'] += res[key]
                         else:
-                            res[key] = 'other["{}"] is {}, not {}'.format(key,
-                                                                          type(other[key]),
-                                                                          type(self[key]))
+                            res[key] = 'other["%s"] is %s, not %s' % (key,
+                                                                      type(other[key]),
+                                                                      type(self[key]))
                 elif isinstance(self[key], (numbers.Number, ndarray)):
                     try:
                         diff = norm(self[key] - other[key])
@@ -174,7 +174,7 @@ class MatStruct(_OrderedDict):
                             res[key] = 1j
                             res['diff_norm'] += res[key]
                         else:
-                            res[key] = '{}'.format(e)
+                            res[key] = '%s' % e
                     else:
                         self_norm = norm(self[key])
                         if self_norm < 1e-12:
@@ -197,15 +197,15 @@ class MatStruct(_OrderedDict):
                             res[key] = 1j
                             res['diff_norm'] += res[key]
                         else:
-                            res[key] = '{}'.format(e)
+                            res[key] = '%s' % e
                 else:
-                    raise NotImplementedError('Not implemented for {}'.format(type(self[key])))
+                    raise NotImplementedError('Not implemented for %s' % (type(self[key])))
             else:
                 if mode == 'norm':
                     res[key] = 1j
                     res['diff_norm'] += res[key]
                 else:
-                    res[key] = '{}'.format(e)
+                    res[key] = '%s' % e
 
         if mode == 'norm':
             if isinstance(res['diff_norm'], numbers.Complex):
