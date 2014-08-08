@@ -111,21 +111,27 @@ class MatStruct(_OrderedDict):
         d.sort()
         return d
 
-    def __repr__(self):
-        '''Custom MatStruct __repr__ for IPython
+    def _repr_pretty_(self, p, cycle):
+        '''Pretty representation
         '''
-        if self:
-            res = []
-            # adjust indentation, maximum 16 characters
-            nspace = max((len(k) for k in self.keys()))
-            nspace = nspace if nspace <= 16 else 0
-            fmt = '%%%ds: %%s' % nspace
-            for k, v in self.items():
-                res.append(fmt % (k, v))
-            res = '\n'.join(res)
+        if cycle:
+            p.text('%s(...)' % (self.__class__.__name__))
         else:
-            res = '%s.%s()' % (self.__module__, self.__class__.__name__)
-        return res
+            if self:
+                # adjust indentation, maximum 16 characters
+                nspace = max((len(k) for k in self.keys()))
+                nspace = nspace if nspace <= 16 else 0
+                fmt = '%%%ds: %%s' % nspace
+                # with p.group(0, 'MatStruct({', '}'):
+                keys = list(self.keys())
+                keys, lastkey = keys[:-1], keys[-1]
+                for k in keys:
+                    p.text(fmt % (k, self[k]))
+                    p.break_()
+                else:
+                    p.text(fmt % (lastkey, self[lastkey]))
+            else:
+                p.text('%s()' % (self.__class__.__name__))
 
     def __str__(self):
         return repr(self)
