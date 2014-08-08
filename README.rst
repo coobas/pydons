@@ -52,4 +52,4 @@ Matlab fields are written in the file.
    [ 0.14518748  0.79911631  0.22522526]]
   string: A string
 
- This software is distributed under the MIT license (see the LICENSE file).
+This software is distributed under the MIT license (see the LICENSE file).
