@@ -11,11 +11,6 @@ from setuptools import setup
 with open('README.rst') as file:
     long_description = file.read()
 
-if sys.hexversion < 0x2070000:
-    requires = ['numpy', 'h5py (>= 2.1)', 'hdf5storage', 'ordereddict']
-else:
-    requires = ['numpy', 'h5py (>= 2.1)', 'hdf5storage']
-
 setup(name='pydons',
       version='0.1.0',
       description='Python data manimulation add-ons',
@@ -24,7 +19,8 @@ setup(name='pydons',
       author_email='coobas at gmail dt com',
       url='https://bitbucket.org/urbanj/pydons',
       packages=['pydons'],
-      requires=requires,
+      install_requires=['numpy', 'h5py>=2.1', 'hdf5storage'],
+      # requires=requires,
       license='MIT',
       keywords='hdf5 matlab',
       classifiers=[
