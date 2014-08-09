@@ -18,6 +18,7 @@ def test_h5_storage():
         d.saveh5(tmpf.name)
         dd = MatStruct.loadh5(tmpf.name)
 
+    assert isinstance(dd, MatStruct)
     assert dd.field_a == field_a
     assert dd.field_b == field_b
     assert np.all(dd.field_c == field_c)
@@ -54,6 +55,7 @@ def test_mat_storage():
         d.savemat(tmpf.name)
         dd = MatStruct.loadmat(tmpf.name)
 
+    assert isinstance(dd, MatStruct)
     assert dd.field_a == field_a
     assert dd.field_b == field_b
     assert np.all(dd.field_c == field_c)
