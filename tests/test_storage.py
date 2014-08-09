@@ -23,6 +23,22 @@ def test_h5_storage():
     assert np.all(dd.field_c == field_c)
 
 
+def test_h5_storage_substruct():
+    d = MatStruct()
+
+    field_d = MatStruct()
+    field_d.array = np.random.rand(3, 4, 6)
+
+    d.field_d = field_d
+
+    with tempfile.NamedTemporaryFile(suffix=".h5") as tmpf:
+        d.saveh5(tmpf.name)
+        dd = MatStruct.loadh5(tmpf.name)
+
+    assert np.all(dd.field_d.array == field_d.array)
+    assert isinstance(dd.field_d, MatStruct)
+
+
 def test_mat_storage():
     d = MatStruct()
 
