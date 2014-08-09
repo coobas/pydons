@@ -12,7 +12,7 @@ with open('README.rst') as file:
     long_description = file.read()
 
 setup(name='pydons',
-      version='0.1.0',
+      version='0.1.1',
       description='Python data manimulation add-ons',
       long_description=long_description,
       author='Jakub Urban',

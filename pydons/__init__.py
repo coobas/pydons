@@ -1,4 +1,4 @@
-'''pydons = Python data manimulation add-ons
+'''pydons = Python numerical data manimulation add-ons
 '''
 
 __version__ = '0.1.1'
@@ -26,10 +26,11 @@ class MatStruct(_OrderedDict):
     """Matlab-like struct container
 
     Features:
-    * Get and set fields as properties (obj.field)
+
+    * Get and set fields as properties (obj.field = )
     * String-only fields
     * Save and load to/from Matlab-compatible HDF5 files
-    * __repr__ is customized for ipython visual output
+    * Ipython customized output
     """
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
@@ -91,8 +92,9 @@ class MatStruct(_OrderedDict):
             raise AttributeError("no attribute '%s'" % (item))
 
     # insertion inspired by https://gist.github.com/jaredks/6276032
-    def __insertion(self, link_prev, key_value):
-        key, value = key_value
+    def __insertion(self, link_prev, key, value):
+        '''Internal insertion method
+        '''
         if link_prev[2] != key:
             if key in self:
                 del self[key]
@@ -100,11 +102,23 @@ class MatStruct(_OrderedDict):
             self._OrderedDict__map[key] = link_prev[1] = link_next[0] = [link_prev, link_next, key]
         dict.__setitem__(self, key, value)
 
-    def insert_after(self, existing_key, key_value):
-        self.__insertion(self._OrderedDict__map[existing_key], key_value)
+    def insert_after(self, existing_key, key, value):
+        '''Insert after an existing field
 
-    def insert_before(self, existing_key, key_value):
-        self.__insertion(self._OrderedDict__map[existing_key][0], key_value)
+        :param existing_key: existing key
+        :param key: new key
+        :param value: inserted value
+        '''
+        self.__insertion(self._OrderedDict__map[existing_key], key, value)
+
+    def insert_before(self, existing_key, key, value):
+        '''Insert before an existing field
+
+        :param existing_key: existing key
+        :param key: new key
+        :param value: inserted value
+        '''
+        self.__insertion(self._OrderedDict__map[existing_key][0], key, value)
 
     def __dir__(self):
         d = []
@@ -115,7 +129,7 @@ class MatStruct(_OrderedDict):
         return d
 
     def _repr_pretty_(self, p, cycle):
-        '''Pretty representation
+        '''Pretty representation for Ipython
         '''
         if cycle:
             p.text('%s(...)' % (self.__class__.__name__))
@@ -136,9 +150,6 @@ class MatStruct(_OrderedDict):
             else:
                 p.text('%s()' % (self.__class__.__name__))
 
-    def __str__(self):
-        return repr(self)
-
     def diff(self, other, **kwargs):
         '''Find numerical differences to another MatStruct, ignoring the keys order
 
@@ -147,10 +158,11 @@ class MatStruct(_OrderedDict):
         diff_uncomparable = number of uncomparable fields.
 
         :param other: MatStruct object to compare to
-        keyword arguments
+
+        Keyword arguments
+
         :param norm: norm function, default is numpy.linalg.norm
-        :param rel_norm_thold: relative difference threshold above which relative
-        difference is normalized by the norm of the field value
+        :param rel_norm_thold: relative difference threshold above which relative difference is normalized by the norm of the field value
         '''
 
         norm = kwargs.get('norm', np.linalg.norm)
