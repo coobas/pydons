@@ -1,5 +1,9 @@
 Pydons is a collection of numerical data manipulation add-ons.
 
+
+MatStruct class
+---------------
+
 MatStruct is an OrderedDict-based Matlab-like container. Typical usage:
 
 ::
@@ -53,3 +57,8 @@ Matlab fields are written in the file.
   string: A string
 
 This software is distributed under the MIT license (see the LICENSE file).
+
+Documentation
+-------------
+
+`pydons.readthedocs.org <http://pydons.readthedocs.org/>`_
