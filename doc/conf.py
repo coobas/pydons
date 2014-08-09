@@ -15,6 +15,14 @@
 import sys
 import os
 
+import mock
+
+# from http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
+MOCK_MODULES = ['numpy', 'hdf5storage', 'h5py', 'hdf5storage.Marshallers',
+                'hdf5storage.utilities', 'hdf5storage.lowlevel']
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
