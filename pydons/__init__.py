@@ -17,6 +17,7 @@ except NameError:
 import numbers
 import pydons.hdf5util
 import hdf5storage
+import numpy as np
 
 
 class MatStruct(_OrderedDict):
@@ -136,89 +137,82 @@ class MatStruct(_OrderedDict):
     def __str__(self):
         return repr(self)
 
-    def diff(self, other, mode='norm'):
-        '''Find differences to another MatStruct, ignoring the keys order
+    def diff(self, other, **kwargs):
+        '''Find numerical differences to another MatStruct, ignoring the keys order
+
+        Returns a structure with diff_norm = average norm of all numerical differences,
+        diff_max = maximum of norm differences,
+        diff_uncomparable = number of uncomparable fields.
 
         :param other: MatStruct object to compare to
+        keyword arguments
+        :param norm: norm function, default is numpy.linalg.norm
+        :param rel_norm_thold: relative difference threshold above which relative
+        difference is normalized by the norm of the field value
         '''
-        from numpy.linalg import norm
-        from numpy import ndarray
+
+        norm = kwargs.get('norm', np.linalg.norm)
+        rel_norm_thold = kwargs.get('rel_norm_thold', 1e-12)
 
         self_keys = set(self.keys())
         other_keys = set(other.keys())
         common_keys = self_keys & other_keys
+        if set(('diff_norm', 'diff_max', 'diff_uncomparable')) & (self_keys | other_keys):
+            raise KeyError("cannot calculate diff if "
+                           "'diff_norm', 'diff_max' or 'diff_uncomparable'"
+                           "is in the keys of the compared objects")
         res = MatStruct()
         nnorm = 0
         # TODO take care of nan's
-        if mode == 'norm':
-            if 'diff_norm' in self or 'diff_max' in self:
-                raise Exception('diff_norm and diff_max cannot be in the compared dict')
-            res['diff_norm'] = 0 + 0j
-            res['diff_max'] = 0
+        res['diff_norm'] = 0
+        res['diff_max'] = 0
+        res['diff_uncomparable'] = 0
         for key in self.keys():
             # common keys
             if key in common_keys:
-                if isinstance(self[key], dict):
+                if isinstance(self[key], self.__class__):
                     if isinstance(other[key], dict):
                         # this allows for standard dict
-                        res[key] = self.__class__.diff(self[key], other[key])
+                        res[key] = self.diff(other[key])
                         res['diff_norm'] += res[key]['diff_norm']
-                        res['diff_max'] = max(res['diff_max'], res[key]['diff_norm'].real)
+                        res['diff_max'] = max(res['diff_max'], res[key]['diff_norm'])
                         nnorm += 1
                     else:
-                        if mode == 'norm':
-                            res[key] = 1j
-                            res['diff_norm'] += res[key]
-                        else:
-                            res[key] = 'other["%s"] is %s, not %s' % (key,
-                                                                      type(other[key]),
-                                                                      type(self[key]))
-                elif isinstance(self[key], (numbers.Number, ndarray)):
+                        res['diff_uncomparable'] += 1
+                        res[key] = ('type(other["%s"]) is %s, not %s' %
+                                    (key, type(other[key]), type(self[key])))
+                elif isinstance(self[key], (numbers.Number, np.ndarray, np.generic)):
                     try:
                         diff = norm(self[key] - other[key])
                     except Exception as e:
-                        if mode == 'norm':
-                            res[key] = 1j
-                            res['diff_norm'] += res[key]
-                        else:
-                            res[key] = '%s' % e
+                        res['diff_uncomparable'] += 1
+                        res[key] = '%s' % e
                     else:
                         self_norm = norm(self[key])
-                        if self_norm < 1e-12:
-                            self_norm = 1
-                        else:
-                            res[key] = diff / self_norm
-                        res['diff_max'] = max(res['diff_max'], res[key].real)
+                        res[key] = diff
+                        if self_norm > rel_norm_thold:
+                            res[key] /= self_norm
+                        res['diff_max'] = max(res['diff_max'], res[key])
                         res['diff_norm'] += res[key]
                         nnorm += 1
                 elif isinstance(self[key], (str, unicode)):
                     try:
-                        if self[key] == other[key]:
+                        if self[key] == str(other[key]):
                             res[key] = 0
                             nnorm += 1
                         else:
-                            res[key] = 1j
-                        res['diff_norm'] += res[key]
+                            res[key] = 'string are not equal'
+                            res['diff_uncomparable'] += 1
                     except Exception as e:
-                        if mode == 'norm':
-                            res[key] = 1j
-                            res['diff_norm'] += res[key]
-                        else:
-                            res[key] = '%s' % e
+                        res['diff_uncomparable'] += 1
+                        res[key] = '%s' % e
                 else:
                     raise NotImplementedError('Not implemented for %s' % (type(self[key])))
             else:
-                if mode == 'norm':
-                    res[key] = 1j
-                    res['diff_norm'] += res[key]
-                else:
-                    res[key] = '%s' % e
-
-        if mode == 'norm':
-            if isinstance(res['diff_norm'], numbers.Complex):
-                res['diff_norm'] = res['diff_norm'].real / nnorm + 1j * res['diff_norm'].imag
-            else:
-                res['diff_norm'] /= nnorm
+                res['diff_uncomparable'] += 1
+                res[key] = '%s not in other' % key
+        # the result is an average of the sum of the diff norms
+        res['diff_norm'] /= nnorm
         return res
 
     def saveh5(self, file_name, path='/', truncate_existing=False,
