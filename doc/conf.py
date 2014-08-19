@@ -19,7 +19,7 @@ import mock
 
 # from http://blog.rtwilson.com/how-to-make-your-sphinx-documentation-compile-with-readthedocs-when-youre-using-numpy-and-scipy/
 MOCK_MODULES = ['numpy', 'hdf5storage', 'h5py', 'hdf5storage.Marshallers',
-                'hdf5storage.utilities', 'hdf5storage.lowlevel']
+                'hdf5storage.utilities', 'hdf5storage.lowlevel', 'netCDF4']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
 
