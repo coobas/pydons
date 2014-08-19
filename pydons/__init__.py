@@ -20,6 +20,10 @@ import numbers
 import pydons.hdf5util
 import hdf5storage
 import numpy as np
+import posixpath
+import netCDF4
+import os
+import sys
 
 
 class MatStruct(_OrderedDict):
@@ -269,3 +273,102 @@ class MatStruct(_OrderedDict):
         :param path: path toread data from
         """
         return cls.loadh5(file_name, path, matlab_compatible=True, **kwargs)
+
+
+class NC4File(netCDF4.Dataset):
+    """NetCDF 4 file with __getitem__"""
+    def __init__(self, *args, **argv):
+        super(NC4File, self).__init__(*args, **argv)
+
+    def __getitem__(self, key):
+        '''Get item from a key specified as a posix path'''
+        grp = self
+        # remove leading /
+        while key.startswith('/'):
+            key = key[1:]
+        if not key:
+            # get the root
+            return self
+        key = posixpath.normpath(key)
+        keys = key.split('/')
+        grps, var = keys[:-1], keys[-1]
+        # get the final group
+        for k in grps:
+            grp = grp.groups[k]
+        # get the variable or group
+        if var in grp.variables:
+            return grp.variables[var]
+        elif var in grp.groups:
+            return grp.groups[var]
+        else:
+            raise KeyError('%s not found' % key)
+
+
+class NC4Dataset(object):
+    """Offline NetCDF 4 data set object"""
+    def __init__(self, grp, name):
+        self._filepath = os.path.abspath(grp.filepath())
+        self._path = posixpath.join(grp.path, name)
+        self._data = None
+        ncvar = grp.variables[name]
+        # preloaded attributes
+        for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
+            if hasattr(ncvar, prop):
+                setattr(self, prop, getattr(ncvar, prop))
+
+    def _get_data(self):
+        if self._data is None:
+            with NC4File(self._filepath, 'r') as f:
+                self._data = f[self._path][:]
+
+    def __getitem__(self, key):
+        """Get slice (read rada)"""
+        self._get_data()
+        return self._data[key]
+
+    def __getattr__(self, attr):
+        if self._data:
+            return getattr(self._data, attr)
+        else:
+            return getattr(NC4File(self._filepath, 'r')[self._path], attr)
+
+    if sys.version_info < (2, 0):
+        # They won't be defined if version is at least 2.0 final
+
+        def __getslice__(self, i, j):
+            return self[max(0, i):max(0, j):]
+
+
+class FileBrowser(MatStruct):
+    """Load netCDF of HDF5 file into an offline MatStruct"""
+    def __init__(self, filename):
+        super(FileBrowser, self).__init__()
+        # get the file type and corresponding classes
+        _, ext = os.path.splitext(filename)
+        ext = ext[1:]
+        if ext.lower() in ('nc', 'cdf'):
+            fileclass, dataclass = NC4File, NC4Dataset
+        elif ext.lower() in ('h5', 'hdf5', 'he5'):
+            raise NotImplementedError('to be implemented')
+            # fileclass, dataclass = H5File, H5Dataset
+        else:
+            raise TypeError('Unknow file extension: %s' % ext)
+        # recursively read the file structure
+        with fileclass(filename, 'r') as fileobj:
+            for key, val in _read_all(fileobj, dataclass).items():
+                self[key] = val
+
+
+def _read_all(basegrp, dataclass):
+    res = MatStruct()
+    for grpname in basegrp.groups:
+        try:
+            res[grpname] = _read_all(basegrp.groups[grpname], dataclass)
+        except KeyError:
+            res[grpname + '_'] = _read_all(basegrp.groups[grpname], dataclass)
+    for varname in basegrp.variables:
+        try:
+            res[varname] = dataclass(basegrp, varname)
+        except KeyError:
+            res[varname + '_'] = dataclass(basegrp, varname)
+    return res
