@@ -1,7 +1,7 @@
 '''pydons = Python numerical data manimulation add-ons
 '''
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 
 # import OrderedDict for Python < 2.7
 # In Python 2.6 or Jython 2.5, ordereddict must be installed
