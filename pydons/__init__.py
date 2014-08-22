@@ -39,7 +39,7 @@ class MatStruct(_OrderedDict):
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
                              ['insert_after', 'insert_before',
-                              'diff', 'saveh5', 'loadh5',
+                              'diff', 'merge', 'saveh5', 'loadh5',
                               'savemat', 'loadmat'])
     __MC = None
 
@@ -233,6 +233,14 @@ class MatStruct(_OrderedDict):
         res['diff_norm'] /= nnorm
         return res
 
+    def merge(self, other):
+        '''Merge fields form another MatStruct or any dict-like object
+
+        :param other: object to merge from
+        '''
+        # TODO
+        raise NotImplementedError('to be implemented')
+
     def saveh5(self, file_name, path='/', truncate_existing=False,
                matlab_compatible=False, **kwargs):
         """Save to an HDF5 file
@@ -262,6 +270,7 @@ class MatStruct(_OrderedDict):
         :param file_name: output file name
         :param path: group path to store fields to
         """
+        # TODO switch convert ints to doubles
         self.saveh5(file_name, path, truncate_existing=truncate_existing,
                     matlab_compatible=True, **kwargs)
 
