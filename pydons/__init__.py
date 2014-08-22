@@ -340,7 +340,16 @@ class NC4Dataset(object):
         if self._data:
             return getattr(self._data, attr)
         else:
-            return getattr(NC4File(self._filepath, 'r')[self._path], attr)
+            raise AttributeError('no attribute %s' % attr)
+            # return getattr(NC4File(self._filepath, 'r')[self._path], attr)
+
+    def __iter__(self):
+        # iterate over data
+        return iter(self._get_data())
+
+    def __array__(self):
+        # for numpy
+        return self._get_data()
 
     if sys.version_info < (2, 0):
         # They won't be defined if version is at least 2.0 final
@@ -378,9 +387,11 @@ class H5Dataset(object):
             # return getattr(h5py.File(self._filepath, 'r')[self._path], attr)
 
     def __iter__(self):
+        # iterate over data
         return iter(self._get_data())
 
     def __array__(self):
+        # for numpy
         return self._get_data()
 
     if sys.version_info < (2, 0):
