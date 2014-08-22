@@ -22,6 +22,7 @@ import hdf5storage
 import numpy as np
 import posixpath
 import netCDF4
+import h5py
 import os
 import sys
 
@@ -319,21 +320,21 @@ class NC4Dataset(object):
         self._filepath = os.path.abspath(grp.filepath())
         self._path = posixpath.join(grp.path, name)
         self._data = None
-        ncvar = grp.variables[name]
+        dset = grp.variables[name]
         # preloaded attributes
         for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
-            if hasattr(ncvar, prop):
-                setattr(self, prop, getattr(ncvar, prop))
+            if hasattr(dset, prop):
+                setattr(self, prop, getattr(dset, prop))
 
     def _get_data(self):
         if self._data is None:
             with NC4File(self._filepath, 'r') as f:
                 self._data = f[self._path][:]
+        return self._data
 
     def __getitem__(self, key):
         """Get slice (read rada)"""
-        self._get_data()
-        return self._data[key]
+        return self._get_data()[key]
 
     def __getattr__(self, attr):
         if self._data:
@@ -343,7 +344,47 @@ class NC4Dataset(object):
 
     if sys.version_info < (2, 0):
         # They won't be defined if version is at least 2.0 final
+        def __getslice__(self, i, j):
+            return self[max(0, i):max(0, j):]
 
+
+class H5Dataset(object):
+    """Offline HDF5 data set object"""
+    def __init__(self, grp, name):
+        self._filepath = os.path.abspath(grp.file.filename)
+        self._path = posixpath.join(grp.name, name)
+        self._data = None
+        dset = grp[name]
+        # preloaded attributes
+        for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
+            if hasattr(dset, prop):
+                setattr(self, prop, getattr(dset, prop))
+
+    def _get_data(self):
+        if self._data is None:
+            with h5py.File(self._filepath, 'r') as f:
+                self._data = f[self._path][:]
+        return self._data
+
+    def __getitem__(self, key):
+        """Get slice (read rada)"""
+        return self._get_data()[key]
+
+    def __getattr__(self, attr):
+        if self._data:
+            return getattr(self._data, attr)
+        else:
+            raise AttributeError('no attribute %s' % attr)
+            # return getattr(h5py.File(self._filepath, 'r')[self._path], attr)
+
+    def __iter__(self):
+        return iter(self._get_data())
+
+    def __array__(self):
+        return self._get_data()
+
+    if sys.version_info < (2, 0):
+        # They won't be defined if version is at least 2.0 final
         def __getslice__(self, i, j):
             return self[max(0, i):max(0, j):]
 
@@ -359,7 +400,7 @@ class FileBrowser(MatStruct):
             fileclass, dataclass = NC4File, NC4Dataset
         elif ext.lower() in ('h5', 'hdf5', 'he5'):
             raise NotImplementedError('to be implemented')
-            # fileclass, dataclass = H5File, H5Dataset
+            fileclass, dataclass = h5py.File, H5Dataset
         else:
             raise TypeError('Unknow file extension: %s' % ext)
         # recursively read the file structure
@@ -370,14 +411,35 @@ class FileBrowser(MatStruct):
 
 def _read_all(basegrp, dataclass):
     res = MatStruct()
-    for grpname in basegrp.groups:
+    for grpname in _groups(basegrp):
         try:
-            res[grpname] = _read_all(basegrp.groups[grpname], dataclass)
+            res[grpname] = _read_all(_groups(basegrp)[grpname], dataclass)
         except KeyError:
-            res[grpname + '_'] = _read_all(basegrp.groups[grpname], dataclass)
-    for varname in basegrp.variables:
+            res[grpname + '_'] = _read_all(_groups(basegrp)[grpname], dataclass)
+    for varname in _variables(basegrp):
         try:
             res[varname] = dataclass(basegrp, varname)
         except KeyError:
             res[varname + '_'] = dataclass(basegrp, varname)
     return res
+
+
+def _groups(basegrp):
+    """Get group names from an HDF5/netCDF4 file group
+    """
+    if hasattr(basegrp, 'groups'):
+        return basegrp.groups
+    else:
+        # for HDF5 return keys that are dict-like
+        # return [key for key in basegrp.keys() if hasattr(basegrp[key], 'keys')]
+        return _OrderedDict([(key, value) for key, value in basegrp.items() if hasattr(value, 'keys')])
+
+
+def _variables(basegrp):
+    """Get group names from an HDF5/netCDF4 file group
+    """
+    if hasattr(basegrp, 'variables'):
+        return basegrp.variables
+    else:
+        # for HDF5 return keys that are not dict-like
+        return _OrderedDict([(key, value) for key, value in basegrp.items() if not hasattr(value, 'keys')])
