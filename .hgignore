@@ -3,3 +3,6 @@ syntax: glob
 
 *.pyc
 *~
+pydons.egg-info
+dist
+doc/_*
