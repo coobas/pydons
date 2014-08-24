@@ -319,7 +319,7 @@ class NC4File(netCDF4.Dataset):
 
 class LazyDataset(object):
     """NetCDF 4 / HDF5 data set object with lazy evaluation"""
-    def __init__(self, grp, name):
+    def __init__(self, grp, name, lazy_min_size=100, lazy_max_size=100000000):
         if isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
             self._fileclass = NC4File
             self._filepath = os.path.abspath(grp.filepath())
@@ -334,16 +334,24 @@ class LazyDataset(object):
         else:
             raise TypeError('%s not supported' % type(grp))
         self._data = None
+        self._lazy_min_size = lazy_min_size
+        self._lazy_max_size = lazy_max_size
         # preloaded attributes
         for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
             if hasattr(dset, prop):
                 setattr(self, prop, getattr(dset, prop))
+        if self.size <= lazy_min_size:
+            self._get_data()
 
     def _get_data(self):
         if self._data is None:
             with self._fileclass(self._filepath, 'r') as f:
-                self._data = f[self._path][:]
-        return self._data
+                data = f[self._path][:]
+                if data.size <= self._lazy_max_size:
+                    self._data = data
+            return data
+        else:
+            return self._data
 
     def __getitem__(self, key):
         """Get slice (read rada)"""
@@ -372,10 +380,16 @@ class LazyDataset(object):
 
 class FileBrowser(MatStruct):
     """Load netCDF of HDF5 file into an offline MatStruct"""
-    def __init__(self, filename):
+    def __init__(self, file_name, lazy_min_size=100, lazy_max_size=100000000):
+        """Read hierarchical data file into a MatStruct tree with data in LazyDataset
+
+        :param file_name: file name
+        :param lazy_min_size: data sets with a lower size will be always stored in the memory
+        :param lazy_max_size: data sets with a larger size will never be stored in the memory
+        """
         super(FileBrowser, self).__init__()
         # get the file type and corresponding classes
-        _, ext = os.path.splitext(filename)
+        _, ext = os.path.splitext(file_name)
         ext = ext[1:]
         if ext.lower() in ('nc', 'cdf'):
             fileclass, dataclass = NC4File, LazyDataset
@@ -384,12 +398,14 @@ class FileBrowser(MatStruct):
         else:
             raise TypeError('Unknow file extension: %s' % ext)
         # recursively read the file structure
-        with fileclass(filename, 'r') as fileobj:
-            for key, val in _read_all(fileobj, dataclass).items():
+        with fileclass(file_name, 'r') as fileobj:
+            for key, val in _read_all(fileobj, dataclass,
+                                      lazy_min_size=lazy_min_size,
+                                      lazy_max_size=lazy_max_size).items():
                 self[key] = val
 
 
-def _read_all(basegrp, dataclass):
+def _read_all(basegrp, dataclass, lazy_min_size, lazy_max_size):
     """Recursively read all groups / variables
 
     :param basegrp: base group (the starting point)
@@ -398,14 +414,16 @@ def _read_all(basegrp, dataclass):
     res = MatStruct()
     for grpname in _groups(basegrp):
         try:
-            res[grpname] = _read_all(_groups(basegrp)[grpname], dataclass)
+            res[grpname] = _read_all(_groups(basegrp)[grpname], dataclass,
+                                     lazy_min_size, lazy_max_size)
         except KeyError:
-            res[grpname + '_'] = _read_all(_groups(basegrp)[grpname], dataclass)
+            res[grpname + '_'] = _read_all(_groups(basegrp)[grpname], dataclass,
+                                           lazy_min_size, lazy_max_size)
     for varname in _variables(basegrp):
         try:
-            res[varname] = dataclass(basegrp, varname)
+            res[varname] = dataclass(basegrp, varname, lazy_min_size, lazy_max_size)
         except KeyError:
-            res[varname + '_'] = dataclass(basegrp, varname)
+            res[varname + '_'] = dataclass(basegrp, varname, lazy_min_size, lazy_max_size)
     return res
 
 
