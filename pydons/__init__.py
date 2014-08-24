@@ -317,13 +317,23 @@ class NC4File(netCDF4.Dataset):
             raise KeyError('%s not found' % key)
 
 
-class NC4Dataset(object):
-    """Offline NetCDF 4 data set object"""
+class LazyDataset(object):
+    """NetCDF 4 / HDF5 data set object with lazy evaluation"""
     def __init__(self, grp, name):
-        self._filepath = os.path.abspath(grp.filepath())
-        self._path = posixpath.join(grp.path, name)
+        if isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
+            self._fileclass = NC4File
+            self._filepath = os.path.abspath(grp.filepath())
+            self._path = posixpath.join(grp.path, name)
+            dset = grp.variables[name]
+        elif isinstance(grp, h5py.Group):
+            self._fileclass = h5py.File
+            self._filepath = os.path.abspath(grp.file.filename)
+            self._path = posixpath.join(grp.name, name)
+            self._data = None
+            dset = grp[name]
+        else:
+            raise TypeError('%s not supported' % type(grp))
         self._data = None
-        dset = grp.variables[name]
         # preloaded attributes
         for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
             if hasattr(dset, prop):
@@ -331,7 +341,7 @@ class NC4Dataset(object):
 
     def _get_data(self):
         if self._data is None:
-            with NC4File(self._filepath, 'r') as f:
+            with self._fileclass(self._filepath, 'r') as f:
                 self._data = f[self._path][:]
         return self._data
 
@@ -344,50 +354,7 @@ class NC4Dataset(object):
             return getattr(self._data, attr)
         else:
             raise AttributeError('no attribute %s' % attr)
-            # return getattr(NC4File(self._filepath, 'r')[self._path], attr)
-
-    def __iter__(self):
-        # iterate over data
-        return iter(self._get_data())
-
-    def __array__(self):
-        # for numpy
-        return self._get_data()
-
-    if sys.version_info < (2, 0):
-        # They won't be defined if version is at least 2.0 final
-        def __getslice__(self, i, j):
-            return self[max(0, i):max(0, j):]
-
-
-class H5Dataset(object):
-    """Offline HDF5 data set object"""
-    def __init__(self, grp, name):
-        self._filepath = os.path.abspath(grp.file.filename)
-        self._path = posixpath.join(grp.name, name)
-        self._data = None
-        dset = grp[name]
-        # preloaded attributes
-        for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
-            if hasattr(dset, prop):
-                setattr(self, prop, getattr(dset, prop))
-
-    def _get_data(self):
-        if self._data is None:
-            with h5py.File(self._filepath, 'r') as f:
-                self._data = f[self._path][:]
-        return self._data
-
-    def __getitem__(self, key):
-        """Get slice (read rada)"""
-        return self._get_data()[key]
-
-    def __getattr__(self, attr):
-        if self._data:
-            return getattr(self._data, attr)
-        else:
-            raise AttributeError('no attribute %s' % attr)
-            # return getattr(h5py.File(self._filepath, 'r')[self._path], attr)
+            # return getattr(self._fileclass(self._filepath, 'r')[self._path], attr)
 
     def __iter__(self):
         # iterate over data
@@ -411,10 +378,9 @@ class FileBrowser(MatStruct):
         _, ext = os.path.splitext(filename)
         ext = ext[1:]
         if ext.lower() in ('nc', 'cdf'):
-            fileclass, dataclass = NC4File, NC4Dataset
+            fileclass, dataclass = NC4File, LazyDataset
         elif ext.lower() in ('h5', 'hdf5', 'he5'):
-            raise NotImplementedError('to be implemented')
-            fileclass, dataclass = h5py.File, H5Dataset
+            fileclass, dataclass = h5py.File, LazyDataset
         else:
             raise TypeError('Unknow file extension: %s' % ext)
         # recursively read the file structure
@@ -424,6 +390,11 @@ class FileBrowser(MatStruct):
 
 
 def _read_all(basegrp, dataclass):
+    """Recursively read all groups / variables
+
+    :param basegrp: base group (the starting point)
+    :param dataclass: data type to return
+    """
     res = MatStruct()
     for grpname in _groups(basegrp):
         try:
