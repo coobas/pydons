@@ -1,4 +1,4 @@
-'''pydons = Python numerical data manimulation add-ons
+'''Pydons is a collection of manipulation add-ons for hierarchichal numerical data.
 '''
 
 __version__ = '0.2.0'
