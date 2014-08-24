@@ -70,6 +70,8 @@ class MatStruct(_OrderedDict):
         return True
 
     def __init__(self, *args, **kwargs):
+        # hiding attributes via __dir__ does not seem to work in ipython
+        # self._hide_methods = kwargs.pop('hide_methods', False)
         super(MatStruct, self).__init__(*args, **kwargs)
 
     def __getattr__(self, item):
@@ -128,6 +130,7 @@ class MatStruct(_OrderedDict):
     def __dir__(self):
         d = []
         d += self.keys()
+        # if not self._hide_methods:
         d += dir(self.__class__)
         d += self.__dict__.keys()
         d.sort()
