@@ -43,6 +43,14 @@ def test_lazy_limits():
         assert(dd.field_b._data is None)
         assert(dd.field_c._data is None)
 
+        assert(dd.field_a.size == field_a.size)
+        assert(dd.field_a.shape == field_a.shape)
+        assert(dd.field_b.size == field_b.size)
+        assert(dd.field_b.shape == field_b.shape)
+        assert(dd.field_c.size == field_c.size)
+        assert(dd.field_c.shape == field_c.shape)
+
+        assert np.all(dd.field_a == field_a)
         assert np.all(dd.field_a[:] == field_a)
         assert np.all(dd.field_b[:] == field_b[:])
         assert np.all(dd.field_c[:] == field_c)
