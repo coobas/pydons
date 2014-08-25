@@ -1,7 +1,7 @@
 '''Pydons is a collection of manipulation add-ons for hierarchichal numerical data.
 '''
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 
 # import OrderedDict for Python < 2.7
 # In Python 2.6 or Jython 2.5, ordereddict must be installed
@@ -343,19 +343,26 @@ class LazyDataset(object):
         if self.size <= lazy_min_size:
             self._get_data()
 
-    def _get_data(self):
+    def _get_data(self, key=None):
         if self._data is None:
             with self._fileclass(self._filepath, 'r') as f:
-                data = f[self._path][:]
-                if data.size <= self._lazy_max_size:
-                    self._data = data
-            return data
+                if self.size <= self._lazy_max_size:
+                    self._data = f[self._path][:]
+                    if key is None:
+                        return self._data
+                    else:
+                        return self._data[key]
+                else:
+                    return f[self._path][key]
         else:
-            return self._data
+            if key is None:
+                return self._data
+            else:
+                return self._data[key]
 
     def __getitem__(self, key):
         """Get slice (read rada)"""
-        return self._get_data()[key]
+        return self._get_data(key)
 
     def __getattr__(self, attr):
         if self._data:
