@@ -1,7 +1,7 @@
 '''Pydons is a collection of manipulation add-ons for hierarchichal numerical data.
 '''
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 # import OrderedDict for Python < 2.7
 # In Python 2.6 or Jython 2.5, ordereddict must be installed
