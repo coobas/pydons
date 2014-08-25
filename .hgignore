@@ -6,3 +6,6 @@ syntax: glob
 pydons.egg-info
 dist
 doc/_*
+
+.coverage
+cover
