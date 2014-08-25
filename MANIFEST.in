@@ -1,5 +1,6 @@
 include *.rst
 include LICENSE
+include ez_setup.py
 recursive-include tests *.py
 recursive-include doc *
 prune doc/_build
