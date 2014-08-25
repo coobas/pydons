@@ -285,7 +285,7 @@ class MatStruct(_OrderedDict):
         :param file_name: file name
         :param path: path toread data from
         """
-        return cls.loadh5(file_name, path, matlab_compatible=True, **kwargs)
+        return cls(hdf5storage.loadmat(file_name, marshaller_collection=cls.__mc()))
 
 
 class NC4File(netCDF4.Dataset):
