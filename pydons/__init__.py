@@ -319,7 +319,7 @@ class NC4File(netCDF4.Dataset):
 
 class LazyDataset(object):
     """NetCDF 4 / HDF5 data set object with lazy evaluation"""
-    def __init__(self, grp, name, lazy_min_size=100, lazy_max_size=100000000):
+    def __init__(self, grp, name, lazy_min_size=10, lazy_max_size=100000000):
         if isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
             self._fileclass = NC4File
             self._filepath = os.path.abspath(grp.filepath())
@@ -387,7 +387,7 @@ class LazyDataset(object):
 
 class FileBrowser(MatStruct):
     """Load netCDF of HDF5 file into an offline MatStruct"""
-    def __init__(self, file_name, lazy_min_size=100, lazy_max_size=100000000):
+    def __init__(self, file_name, lazy_min_size=10, lazy_max_size=100000000):
         """Read hierarchical data file into a MatStruct tree with data in LazyDataset
 
         :param file_name: file name
