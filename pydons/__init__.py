@@ -358,6 +358,9 @@ class LazyDataset(object):
                 setattr(self, prop, getattr(dset, prop))
         if self.size <= lazy_min_size:
             self._get_data()
+        if hasattr(dset, 'attrs'):
+            # attributes can have any keys
+            self.attrs = MatStruct(dset.attrs, any_keys=True)
 
     def _get_data(self, key=None):
         if self._data is None:
