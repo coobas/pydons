@@ -1,6 +1,6 @@
 from pydons import MatStruct
 import numpy as np
-import os
+import unittest
 
 
 def test_fields():
@@ -14,3 +14,20 @@ def test_fields():
     assert d.field_a == field_a
     assert d.field_b == field_b
     assert np.all(d.field_c == field_c)
+
+
+class TestKeys(unittest.TestCase):
+
+    def test_keys(self):
+        d = MatStruct()
+        self.assertRaises(KeyError, d.__setitem__, 1, None)
+        self.assertRaises(KeyError, d.__setitem__, '_a', None)
+
+    def test_any_keys(self):
+        d = MatStruct(any_keys=True)
+        d[1] = 1
+        d['_a'] = '_a'
+        d.__setitem__(1, None)
+        d.__setitem__('_a', None)
+        del d[1]
+        del d['_a']
