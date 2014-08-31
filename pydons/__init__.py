@@ -36,6 +36,8 @@ class MatStruct(_OrderedDict):
     * String-only fields
     * Save and load to/from Matlab-compatible HDF5 files
     * Ipython customized output
+
+    :param any_keys: allow arbitrary keys, not only strings
     """
 
     __FORBIDDEN_KEYS = tuple(dir(_OrderedDict) +
@@ -72,6 +74,9 @@ class MatStruct(_OrderedDict):
     def __init__(self, *args, **kwargs):
         # hiding attributes via __dir__ does not seem to work in ipython
         # self._hide_methods = kwargs.pop('hide_methods', False)
+        # hiding attributes via __dir__ does not seem to work in ipython
+        self._any_keys = kwargs.pop('any_keys', False)
+        self._item_dir = []
         super(MatStruct, self).__init__(*args, **kwargs)
 
     def __getattr__(self, item):
@@ -82,8 +87,20 @@ class MatStruct(_OrderedDict):
 
     def __setitem__(self, item, value):
         if not item in self:
-            self.__is_valid_key(item)
+            try:
+                self.__is_valid_key(item)
+            except KeyError:
+                if not self._any_keys:
+                    raise
+            else:
+                self._item_dir.append(item)
         super(MatStruct, self).__setitem__(item, value)
+
+    def __delitem__(self, item):
+        super(MatStruct, self).__delitem__(item)
+        # TODO this migth not be optimum
+        if item in self._item_dir:
+            self._item_dir.remove(item)
 
     def __setattr__(self, item, value):
         if item.startswith('_'):
@@ -128,8 +145,7 @@ class MatStruct(_OrderedDict):
         self.__insertion(self._OrderedDict__map[existing_key][0], key, value)
 
     def __dir__(self):
-        d = []
-        d += self.keys()
+        d = self._item_dir[:]
         # if not self._hide_methods:
         d += dir(self.__class__)
         d += self.__dict__.keys()
