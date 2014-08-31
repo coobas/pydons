@@ -387,10 +387,12 @@ class LazyDataset(object):
 
 class FileBrowser(MatStruct):
     """Load netCDF of HDF5 file into an offline MatStruct"""
-    def __init__(self, file_name, lazy_min_size=10, lazy_max_size=100000000):
+    def __init__(self, file_name, file_type=None,
+                 lazy_min_size=10, lazy_max_size=100000000):
         """Read hierarchical data file into a MatStruct tree with data in LazyDataset
 
         :param file_name: file name
+        :param file_type: file type, default (None) for autodetect
         :param lazy_min_size: data sets with a lower size will be always stored in the memory
         :param lazy_max_size: data sets with a larger size will never be stored in the memory
         """
@@ -398,12 +400,19 @@ class FileBrowser(MatStruct):
         # get the file type and corresponding classes
         _, ext = os.path.splitext(file_name)
         ext = ext[1:]
-        if ext.lower() in ('nc', 'cdf'):
+        if file_type is None:
+            if ext.lower() in ('nc', 'cdf'):
+                file_type = 'cdf'
+            else:
+                # HDF5 as a default fall back
+                file_type = 'hdf5'
+
+        if file_type.lower() in ('nc', 'cdf', 'netcdf', 'netcdf4'):
             fileclass, dataclass = NC4File, LazyDataset
-        elif ext.lower() in ('h5', 'hdf5', 'he5'):
+        elif file_type in ('h5', 'hdf5', 'he5', 'hdf-5'):
             fileclass, dataclass = h5py.File, LazyDataset
         else:
-            raise TypeError('Unknow file extension: %s' % ext)
+            raise TypeError('Unknow file type: %s' % file_type)
         # recursively read the file structure
         with fileclass(file_name, 'r') as fileobj:
             for key, val in _read_all(fileobj, dataclass,
