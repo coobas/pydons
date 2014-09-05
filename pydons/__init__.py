@@ -428,10 +428,10 @@ class FileBrowser(MatStruct):
 
         if file_type.lower() in ('nc', 'cdf', 'netcdf', 'netcdf4'):
             fileclass, dataclass = NC4File, LazyDataset
-        elif file_type in ('h5', 'hdf5', 'he5', 'hdf-5'):
+        elif file_type.lower() in ('h5', 'hdf5', 'he5', 'hdf-5'):
             fileclass, dataclass = h5py.File, LazyDataset
         else:
-            raise TypeError('Unknow file type: %s' % file_type)
+            raise TypeError('Unknown file type: %s' % file_type)
         # recursively read the file structure
         with fileclass(file_name, 'r') as fileobj:
             for key, val in _read_all(fileobj, dataclass,
