@@ -372,7 +372,10 @@ class LazyDataset(object):
                     else:
                         return self._data[key]
                 else:
-                    return f[self._path][key]
+                    if key is None:
+                        return f[self._path]
+                    else:
+                        return f[self._path][key]
         else:
             if key is None:
                 return self._data
