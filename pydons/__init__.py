@@ -335,25 +335,34 @@ class NC4File(netCDF4.Dataset):
 
 class LazyDataset(object):
     """NetCDF 4 / HDF5 data set object with lazy evaluation"""
-    def __init__(self, grp, name, lazy_min_size=10, lazy_max_size=100000000):
+    def __init__(self, grp, name, squeeze=False, transpose=False,
+                 lazy_min_size=10, lazy_max_size=100000000):
         if isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
             self._fileclass = NC4File
             self._filepath = os.path.abspath(grp.filepath())
+            fileobj = grp
+            while fileobj.parent is not None:
+                fileobj = fileobj.parent
+            self._fileobj = fileobj
             self._path = posixpath.join(grp.path, name)
             dset = grp.variables[name]
         elif isinstance(grp, h5py.Group):
             self._fileclass = h5py.File
             self._filepath = os.path.abspath(grp.file.filename)
+            self._fileobj = grp.file
             self._path = posixpath.join(grp.name, name)
             self._data = None
             dset = grp[name]
         else:
             raise TypeError('%s not supported' % type(grp))
+        self._squeeze = squeeze
+        self._transpose = transpose
         self._data = None
         self._lazy_min_size = lazy_min_size
         self._lazy_max_size = lazy_max_size
         # preloaded attributes
         for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
+            # FIXME transpose, squeeze -> shape, ndim
             if hasattr(dset, prop):
                 setattr(self, prop, getattr(dset, prop))
         if self.size <= lazy_min_size:
@@ -364,15 +373,33 @@ class LazyDataset(object):
 
     def _get_data(self, key=None):
         if self._data is None:
-            with self._fileclass(self._filepath, 'r') as f:
-                if self.size <= self._lazy_max_size:
-                    self._data = f[self._path][:]
-                    if key is None:
-                        return self._data
-                    else:
-                        return self._data[key]
+            # with self._fileclass(self._filepath, 'r') as f:
+            if hasattr(self._fileobj, '_isopen'):
+                if not self._fileobj._isopen:
+                    self._fileobj = self._fileclass(self._filepath, 'r')
+            elif hasattr(self._fileobj, 'id'):
+                if not self._fileobj.id.valid:
+                    self._fileobj = self._fileclass(self._filepath, 'r')
+            else:
+                self._fileobj = self._fileclass(self._filepath, 'r')
+            f = self._fileobj
+            if self.size <= self._lazy_max_size:
+                self._data = f[self._path][:]
+                if self._squeeze:
+                    self._data = np.squeeze(self._data)
+                if self._transpose:
+                    self._data = np.transpose(self._data)
+                if key is None:
+                    return self._data
                 else:
-                    return f[self._path][key]
+                    return self._data[key]
+            else:
+                data = f[self._path][key]
+                if self._squeeze:
+                    data = np.squeeze(data)
+                if self._transpose:
+                    data = np.transpose(data)
+                return data
         else:
             if key is None:
                 return self._data
@@ -384,11 +411,7 @@ class LazyDataset(object):
         return self._get_data(key)
 
     def __getattr__(self, attr):
-        if self._data:
-            return getattr(self._data, attr)
-        else:
-            raise AttributeError('no attribute %s' % attr)
-            # return getattr(self._fileclass(self._filepath, 'r')[self._path], attr)
+        return getattr(self._get_data(), attr)
 
     def __iter__(self):
         # iterate over data
@@ -405,60 +428,77 @@ class LazyDataset(object):
 
 
 class FileBrowser(MatStruct):
-    """Load netCDF of HDF5 file into an offline MatStruct"""
-    def __init__(self, file_name, file_type=None,
-                 lazy_min_size=10, lazy_max_size=100000000):
-        """Read hierarchical data file into a MatStruct tree with data in LazyDataset
+    """Read hierarchical data file into a MatStruct tree with data in LazyDataset
 
-        :param file_name: file name
-        :param file_type: file type, default (None) for autodetect
-        :param lazy_min_size: data sets with a lower size will be always stored in the memory
-        :param lazy_max_size: data sets with a larger size will never be stored in the memory
-        """
-        super(FileBrowser, self).__init__()
+    :param file_name: file name
+    :param file_type: file type, default (None) for autodetect
+    :param lazy_min_size: data sets with a lower size will be always stored in the memory
+    :param lazy_max_size: data sets with a larger size will never be stored in the memory
+    """
+
+    def __init__(self, file_name, file_type=None,
+                 squeeze=False, transpose=None,
+                 lazy_min_size=10, lazy_max_size=100000000,
+                 any_keys=False):
+        super(FileBrowser, self).__init__(any_keys=any_keys)
         # get the file type and corresponding classes
         _, ext = os.path.splitext(file_name)
         ext = ext[1:]
         if file_type is None:
             if ext.lower() in ('nc', 'cdf'):
                 file_type = 'cdf'
+            elif ext.lower() in ('h5', 'hdf5', 'he5', 'hdf-5'):
+                file_type = 'hdf5'
+            elif ext.lower() in ('mat'):
+                file_type = 'hdf5'
+                if transpose is None:
+                    transpose = True
             else:
                 # HDF5 as a default fall back
                 file_type = 'hdf5'
+        if transpose is None:
+            transpose = False
 
-        if file_type.lower() in ('nc', 'cdf', 'netcdf', 'netcdf4'):
+        if file_type.lower() in ('nc', 'cdf', 'netcdf', 'netcdf4', 'netcdf-4'):
             fileclass, dataclass = NC4File, LazyDataset
-        elif file_type in ('h5', 'hdf5', 'he5', 'hdf-5'):
+        elif file_type.lower() in ('h5', 'hdf5', 'he5', 'hdf-5'):
             fileclass, dataclass = h5py.File, LazyDataset
         else:
             raise TypeError('Unknow file type: %s' % file_type)
         # recursively read the file structure
         with fileclass(file_name, 'r') as fileobj:
             for key, val in _read_all(fileobj, dataclass,
+                                      squeeze=squeeze, transpose=transpose,
                                       lazy_min_size=lazy_min_size,
-                                      lazy_max_size=lazy_max_size).items():
+                                      lazy_max_size=lazy_max_size,
+                                      any_keys=any_keys).items():
                 self[key] = val
 
 
-def _read_all(basegrp, dataclass, lazy_min_size, lazy_max_size):
+def _read_all(basegrp, dataclass, squeeze, transpose,
+              lazy_min_size, lazy_max_size, any_keys):
     """Recursively read all groups / variables
 
     :param basegrp: base group (the starting point)
     :param dataclass: data type to return
     """
-    res = MatStruct()
+    res = MatStruct(any_keys=any_keys)
     for grpname in _groups(basegrp):
         try:
             res[grpname] = _read_all(_groups(basegrp)[grpname], dataclass,
-                                     lazy_min_size, lazy_max_size)
+                                     squeeze, transpose,
+                                     lazy_min_size, lazy_max_size,
+                                     any_keys=any_keys)
         except KeyError:
             res[grpname + '_'] = _read_all(_groups(basegrp)[grpname], dataclass,
-                                           lazy_min_size, lazy_max_size)
+                                           squeeze, transpose,
+                                           lazy_min_size, lazy_max_size,
+                                           any_keys=any_keys)
     for varname in _variables(basegrp):
         try:
-            res[varname] = dataclass(basegrp, varname, lazy_min_size, lazy_max_size)
+            res[varname] = dataclass(basegrp, varname, squeeze, transpose, lazy_min_size, lazy_max_size)
         except KeyError:
-            res[varname + '_'] = dataclass(basegrp, varname, lazy_min_size, lazy_max_size)
+            res[varname + '_'] = dataclass(basegrp, varname, squeeze, transpose, lazy_min_size, lazy_max_size)
     return res
 
 
