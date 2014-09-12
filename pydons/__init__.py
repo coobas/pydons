@@ -360,11 +360,27 @@ class LazyDataset(object):
         self._data = None
         self._lazy_min_size = lazy_min_size
         self._lazy_max_size = lazy_max_size
-        # preloaded attributes
-        for prop in ('dtype', 'shape', 'size', 'ndim', 'dimensions', 'title', 'units'):
+        # preloaded attributes (the order is important for squeeze)
+        for prop in ('dtype', 'dimensions', 'shape', 'size', 'ndim', 'title', 'units'):
             # FIXME transpose, squeeze -> shape, ndim
             if hasattr(dset, prop):
                 setattr(self, prop, getattr(dset, prop))
+                if self._transpose:
+                    if prop == 'shape':
+                        self.shape = self.shape[::-1]
+                    elif prop == 'dimensions':
+                        self.dimensions = self.dimensions[::-1]
+                if self._squeeze:
+                    if prop == 'shape':
+                        self.shape = tuple((i for i in self.shape if i > 1))
+                    elif prop == 'ndim':
+                        self.ndim = len(self.shape)
+                    elif prop == 'dimensions' and hasattr(self, 'shape'):
+                        newdims = []
+                        for i, dim in zip(self.shape, self.dimensions):
+                            if i > 1:
+                                newdims.append(dim)
+                        self.dimensions = tuple(newdims)
         if self.size <= lazy_min_size:
             self._get_data()
         if hasattr(dset, 'attrs'):

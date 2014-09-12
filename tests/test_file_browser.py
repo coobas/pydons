@@ -1,6 +1,10 @@
 from pydons import MatStruct, FileBrowser
 import numpy as np
 import tempfile
+import os
+
+
+DATADIR = os.path.join(os.path.dirname(__file__), 'data')
 
 
 def test_hdf5():
@@ -61,3 +65,20 @@ def test_lazy_limits():
 
         assert np.all(dd.field_b[10:20] == field_b[10:20])
         assert np.all(dd.field_c[100:1000] == field_c[100:1000])
+
+
+def test_squeeze():
+    fb = FileBrowser(os.path.join(DATADIR, 'test_data.h5'), squeeze=True)
+
+    assert fb.one.shape == ()
+    assert fb.ones.shape == (2, )
+    assert fb.ones3d.shape == (2, 3)
+
+
+def test_transpose():
+    fb = FileBrowser(os.path.join(DATADIR, 'test_data.h5'), transpose=True)
+
+    assert fb.one.shape == (1, )
+    assert fb.ones.shape == (2, )
+    assert fb.ones3d.shape == (3, 2, 1)
+
