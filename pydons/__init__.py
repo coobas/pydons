@@ -1,7 +1,7 @@
 '''Pydons is a collection of manipulation add-ons for hierarchichal numerical data.
 '''
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 
 # import OrderedDict for Python < 2.7
 # In Python 2.6 or Jython 2.5, ordereddict must be installed
@@ -21,7 +21,11 @@ import pydons.hdf5util
 import hdf5storage
 import numpy as np
 import posixpath
-import netCDF4
+try:
+    import netCDF4
+    NETCDF4 = True
+except ImportError:
+    NETCDF4 = False
 import h5py
 import os
 import sys
@@ -304,40 +308,41 @@ class MatStruct(_OrderedDict):
         return cls(hdf5storage.loadmat(file_name, marshaller_collection=cls.__mc()))
 
 
-class NC4File(netCDF4.Dataset):
-    """NetCDF 4 file with __getitem__"""
-    def __init__(self, *args, **argv):
-        super(NC4File, self).__init__(*args, **argv)
+if NETCDF4:
+    class NC4File(netCDF4.Dataset):
+        """NetCDF 4 file with __getitem__"""
+        def __init__(self, *args, **argv):
+            super(NC4File, self).__init__(*args, **argv)
 
-    def __getitem__(self, key):
-        '''Get item from a key specified as a posix path'''
-        grp = self
-        # remove leading /
-        while key.startswith('/'):
-            key = key[1:]
-        if not key:
-            # get the root
-            return self
-        key = posixpath.normpath(key)
-        keys = key.split('/')
-        grps, var = keys[:-1], keys[-1]
-        # get the final group
-        for k in grps:
-            grp = grp.groups[k]
-        # get the variable or group
-        if var in grp.variables:
-            return grp.variables[var]
-        elif var in grp.groups:
-            return grp.groups[var]
-        else:
-            raise KeyError('%s not found' % key)
+        def __getitem__(self, key):
+            '''Get item from a key specified as a posix path'''
+            grp = self
+            # remove leading /
+            while key.startswith('/'):
+                key = key[1:]
+            if not key:
+                # get the root
+                return self
+            key = posixpath.normpath(key)
+            keys = key.split('/')
+            grps, var = keys[:-1], keys[-1]
+            # get the final group
+            for k in grps:
+                grp = grp.groups[k]
+            # get the variable or group
+            if var in grp.variables:
+                return grp.variables[var]
+            elif var in grp.groups:
+                return grp.groups[var]
+            else:
+                raise KeyError('%s not found' % key)
 
 
 class LazyDataset(object):
     """NetCDF 4 / HDF5 data set object with lazy evaluation"""
     def __init__(self, grp, name, squeeze=False, transpose=False,
                  lazy_min_size=10, lazy_max_size=100000000):
-        if isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
+        if NETCDF4 and isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
             self._fileclass = NC4File
             self._filepath = os.path.abspath(grp.filepath())
             fileobj = grp
@@ -479,7 +484,10 @@ class FileBrowser(MatStruct):
             transpose = False
 
         if file_type.lower() in ('nc', 'cdf', 'netcdf', 'netcdf4', 'netcdf-4'):
-            fileclass, dataclass = NC4File, LazyDataset
+            if NETCDF4:
+                fileclass, dataclass = NC4File, LazyDataset
+            else:
+                raise TypeError('netCDF4 module must be installed for netCDF4 file support')
         elif file_type.lower() in ('h5', 'hdf5', 'he5', 'hdf-5'):
             fileclass, dataclass = h5py.File, LazyDataset
         else:

@@ -1,4 +1,5 @@
 hdf5storage>=0.1.1
 h5py
 numpy
-netCDF4
+# netCDF4 is optional
+# netCDF4

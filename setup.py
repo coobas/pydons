@@ -12,7 +12,7 @@ with open('README.rst') as file:
     long_description = file.read()
 
 setup(name='pydons',
-      version='0.2.2',
+      version='0.2.3',
       description='Python data manimulation add-ons',
       long_description=long_description,
       author='Jakub Urban',
@@ -20,6 +20,7 @@ setup(name='pydons',
       url='https://bitbucket.org/urbanj/pydons',
       packages=['pydons'],
       install_requires=['numpy', 'h5py>=2.1', 'hdf5storage', 'netCDF4'],
+      extras_require={'netCDF4': ['netCDF4']},
       # requires=requires,
       license='MIT',
       keywords='hdf5 netCDF matlab',
