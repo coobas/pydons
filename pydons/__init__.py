@@ -394,7 +394,10 @@ class LazyDataset(object):
                 else:
                     return self._data[key]
             else:
-                data = f[self._path][key]
+                if key is None:
+                    data = f[self._path]
+                else:
+                    data = f[self._path][key]
                 if self._squeeze:
                     data = np.squeeze(data)
                 if self._transpose:
