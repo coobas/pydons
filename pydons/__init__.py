@@ -41,6 +41,8 @@ class MatStruct(_OrderedDict):
     * Save and load to/from Matlab-compatible HDF5 files
     * Ipython customized output
 
+    :param values: list/tuple of key, value pairs or a dict-like object
+    :param dedict: convert dict members to MatStruct
     :param any_keys: allow arbitrary keys, not only strings
     """
 
@@ -75,13 +77,19 @@ class MatStruct(_OrderedDict):
             raise KeyError('Keys must be ascii characters only')
         return True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, values=(), dedict=True, any_keys=False):
         # hiding attributes via __dir__ does not seem to work in ipython
         # self._hide_methods = kwargs.pop('hide_methods', False)
         # hiding attributes via __dir__ does not seem to work in ipython
-        self._any_keys = kwargs.pop('any_keys', False)
+        self._any_keys = any_keys
         self._item_dir = []
-        super(MatStruct, self).__init__(*args, **kwargs)
+        # TODO any_keys not taken into account in the OrderedDict constructor
+        super(MatStruct, self).__init__(values)
+        # convert dict objects to MatStruct
+        if dedict:
+            for key, value in self.items():
+                if isinstance(value, dict):
+                    self[key] = self.__class__(value, dedict=dedict, any_keys=any_keys)
 
     def __getattr__(self, item):
         if item in self:

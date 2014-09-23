@@ -1,6 +1,7 @@
 from pydons import MatStruct
 import numpy as np
 import unittest
+from pydons import _OrderedDict as OrderedDict
 
 
 def test_fields():
@@ -31,3 +32,12 @@ class TestKeys(unittest.TestCase):
         d.__setitem__('_a', None)
         del d[1]
         del d['_a']
+
+
+def test_dedict():
+    od = OrderedDict((('x', 1), ('y', 2.1)))
+    od['z'] = OrderedDict((('x', 1), ('y', 2.1)))
+    ms = MatStruct(od, dedict=True)
+    assert isinstance(ms['z'], MatStruct)
+    ms = MatStruct(od, dedict=False)
+    assert isinstance(ms['z'], OrderedDict)
