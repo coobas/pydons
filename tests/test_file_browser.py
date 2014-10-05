@@ -1,4 +1,4 @@
-from pydons import MatStruct, FileBrowser
+from pydons import MatStruct, FileBrowser, LazyDataset
 import numpy as np
 import tempfile
 import os
@@ -82,3 +82,38 @@ def test_transpose():
     assert fb.ones.shape == (2, )
     assert fb.ones3d.shape == (3, 2, 1)
 
+
+def test_global_cache():
+    d = MatStruct()
+
+    field_a = np.random.rand(10)
+    field_b = np.random.rand(1000)
+    field_c = np.random.rand(10000)
+
+    d.field_a = field_a
+    d.field_aa = field_a
+    d.field_b = field_b
+    d.field_c = field_c
+
+    LazyDataset.MAX_CACHE_SIZE = field_b.size
+    LazyDataset._clear_cache()
+
+    with tempfile.NamedTemporaryFile(suffix=".h5") as tmpf:
+        d.saveh5(tmpf.name)
+
+        dd = FileBrowser(tmpf.name, lazy_min_size=field_a.size,
+                         lazy_max_size=LazyDataset.MAX_CACHE_SIZE)
+
+        # test if small size arrays are cached
+        cache_size = sum(f.size for f in dd.values() if f.size <= field_a.size)
+        assert all(f._LazyDataset__global_cache for f in dd.values() if f.size <= field_a.size)
+        assert all(~f._LazyDataset__global_cache for f in dd.values() if f.size > field_a.size)
+        assert LazyDataset._LazyDataset__cache_size == cache_size
+        # cache field_b
+        dd.field_b[:]
+        # previous arrays should be discarded now
+        cache_size = dd.field_b.size
+        assert LazyDataset._LazyDataset__cache_size == cache_size
+        assert dd.field_b._LazyDataset__global_cache
+        assert all(~f._LazyDataset__global_cache for f in dd.values() if f.size < field_b.size)
+        assert all(f._data is None for f in dd.values() if f.size < field_b.size)

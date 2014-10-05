@@ -16,6 +16,7 @@ try:
     del _collectionsModule
 except NameError:
     raise ImportError('No OrderedDict module found')
+from collections import deque
 import numbers
 import pydons.hdf5util
 import hdf5storage
@@ -29,6 +30,7 @@ except ImportError:
 import h5py
 import os
 import sys
+import weakref
 
 
 class MatStruct(_OrderedDict):
@@ -348,6 +350,11 @@ if NETCDF4:
 
 class LazyDataset(object):
     """NetCDF 4 / HDF5 data set object with lazy evaluation"""
+
+    __cache_objs = deque()
+    __cache_size = 0
+    MAX_CACHE_SIZE = int(1e8)
+
     def __init__(self, grp, name, squeeze=False, transpose=False,
                  lazy_min_size=10, lazy_max_size=100000000):
         if NETCDF4 and isinstance(grp, (netCDF4.Group, netCDF4.Dataset)):
@@ -371,6 +378,7 @@ class LazyDataset(object):
         self._squeeze = squeeze
         self._transpose = transpose
         self._data = None
+        self.__global_cache = False
         self._lazy_min_size = lazy_min_size
         self._lazy_max_size = lazy_max_size
         # preloaded attributes (the order is important for squeeze)
@@ -412,31 +420,54 @@ class LazyDataset(object):
             else:
                 self._fileobj = self._fileclass(self._filepath, 'r')
             f = self._fileobj
+            if len(f[self._path].shape) == 0:
+                data = f[self._path][()]
+            else:
+                data = f[self._path][:]
+            if self._squeeze:
+                data = np.squeeze(data)
+            if self._transpose:
+                data = np.transpose(data)
+            # cache data if the size is small
             if self.size <= self._lazy_max_size:
-                self._data = f[self._path][:]
-                if self._squeeze:
-                    self._data = np.squeeze(self._data)
-                if self._transpose:
-                    self._data = np.transpose(self._data)
-                if key is None:
-                    return self._data
-                else:
-                    return self._data[key]
-            else:
-                if key is None:
-                    data = f[self._path]
-                else:
-                    data = f[self._path][key]
-                if self._squeeze:
-                    data = np.squeeze(data)
-                if self._transpose:
-                    data = np.transpose(data)
-                return data
+                self._cache_data(data)
         else:
-            if key is None:
-                return self._data
-            else:
-                return self._data[key]
+            data = self._data
+        if key is None:
+            return data
+        else:
+            return data[key]
+
+    def _cache_data(self, data):
+        # private object's cache
+        if data.size <= self._lazy_max_size:
+            self._data = data
+        # global cache counter
+        if data.size <= self.__class__.MAX_CACHE_SIZE:
+            self.__global_cache = True
+            self.__class__.__cache_objs.appendleft(weakref.ref(self))
+            self.__class__.__cache_size += data.size
+            # pop cache objects until the total cache size
+            # is <= MAX_CACHE_SIZE
+            while self.__class__.__cache_size > self.__class__.MAX_CACHE_SIZE:
+                print('pop')
+                obj = self.__class__.__cache_objs.pop()()
+                # references to deleted objects might exist
+                if obj is not None:
+                    obj.__global_cache = False
+                    self.__class__.__cache_size -= obj._data.size
+                    obj._data = None
+
+    def _clear_data(self):
+        '''Clear data cache
+        '''
+        if self.__global_cache:
+            # refs to non-existing objects can stay
+            # self.__class__.__cache_objs.remove(weakref.ref(self))
+            if self.__global_cache:
+                self.__class__.__cache_size -= self.size
+                self.__global_cache = False
+                self._data = None
 
     def __getitem__(self, key):
         """Get slice (read rada)"""
@@ -458,6 +489,22 @@ class LazyDataset(object):
         def __getslice__(self, i, j):
             return self[max(0, i):max(0, j):]
 
+    def __del__(self):
+        '''Delete object from global cache registry
+        '''
+        if self and self.__global_cache:
+            # self.__class__.__cache_objs.remove(weakref.ref(self))
+            self.__class__.__cache_size -= self.size
+
+    @classmethod
+    def _clear_cache(cls):
+        while cls.__cache_objs:
+            obj = cls.__cache_objs.pop()()
+            if obj is not None:
+                obj.__global_cache = False
+                obj._data = None
+        cls.__cache_size = 0
+
 
 class FileBrowser(MatStruct):
     """Read hierarchical data file into a MatStruct tree with data in LazyDataset
@@ -470,7 +517,7 @@ class FileBrowser(MatStruct):
 
     def __init__(self, file_name, file_type=None,
                  squeeze=False, transpose=None,
-                 lazy_min_size=10, lazy_max_size=100000000,
+                 lazy_min_size=10, lazy_max_size=int(1e7),
                  any_keys=False):
         super(FileBrowser, self).__init__(any_keys=any_keys)
         # get the file type and corresponding classes
