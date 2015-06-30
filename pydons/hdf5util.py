@@ -12,7 +12,7 @@ class MatStructMarshaller(TypeMarshaller):
         TypeMarshaller.__init__(self)
         self.python_attributes |= set(['Python.Fields'])
         self.matlab_attributes |= set(['MATLAB_class'])
-        self.types = [MatStructType]
+        self.types = [MatStructType, dict]
         self.python_type_strings = ['%s.%s' % (MatStructType.__module__, MatStructType.__name__)]
         self.__MATLAB_classes = {MatStructType: 'struct'}
         # Set matlab_classes to empty since NumpyScalarArrayMarshaller
