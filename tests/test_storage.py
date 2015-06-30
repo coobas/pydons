@@ -25,6 +25,7 @@ def test_h5_storage():
     assert dd.field_b == field_b
     assert np.all(dd.field_c == field_c)
 
+
 def test_loadh5():
     d = MatStruct()
 
@@ -48,6 +49,7 @@ def test_loadh5():
             grp.create_dataset('array', data=d.field_d.array)
         dd = MatStruct.loadh5(tmpf.name)
 
+    # TODO fails for upstream hdf5storage
     assert isinstance(dd, MatStruct)
     assert isinstance(dd.field_d, MatStruct)
     # assert dd.field_a == field_a
