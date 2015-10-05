@@ -37,28 +37,16 @@ class MatStructMarshaller(TypeMarshaller):
         # checked (what type it is) and the error message are different
         # for each Python version.
 
-        if sys.hexversion >= 0x03000000:
-            for fieldname in data:
-                if not isinstance(fieldname, str):
-                    raise NotImplementedError('Dictionaries with non-'
-                                              + 'str keys are not '
-                                              + 'supported: '
-                                              + repr(fieldname))
-                if '\x00' in fieldname or '/' in fieldname:
-                    raise NotImplementedError('Dictionary keys with ' \
-                        + "null characters ('\x00') and '/' are not " \
-                        + 'supported.')
-        else:
-            for fieldname in data:
-                if not isinstance(fieldname, unicode):
-                    raise NotImplementedError('Dictionaries with non-'
-                                              + 'unicode keys are not '
-                                              + 'supported: '
-                                              + repr(fieldname))
-                if u'\x00' in fieldname or u'/' in fieldname:
-                    raise NotImplementedError('Dictionary keys with ' \
-                        + "null characters ('\x00') and '/' are not " \
-                        + 'supported.')
+        for fieldname in data:
+            if not isinstance(fieldname, six.string_types):
+                raise NotImplementedError('Dictionaries with non-'
+                                          + 'str keys are not '
+                                          + 'supported: '
+                                          + repr(fieldname))
+            if '\x00' in fieldname or '/' in fieldname:
+                raise NotImplementedError('Dictionary keys with ' \
+                    + "null characters ('\x00') and '/' are not " \
+                    + 'supported.')
 
         # If the group doesn't exist, it needs to be created. If it
         # already exists but is not a group, it needs to be deleted
