@@ -1,7 +1,7 @@
 '''Pydons is a collection of manipulation add-ons for hierarchichal numerical data.
 '''
 
-__version__ = '0.2.4'
+__version__ = '0.2.5'
 
 # import OrderedDict for Python < 2.7
 # In Python 2.6 or Jython 2.5, ordereddict must be installed
@@ -318,8 +318,44 @@ class MatStruct(_OrderedDict):
 
         :param file_name: file name
         :param path: path toread data from
+        :param kwargs: keyword passed to hdf5storage.loadmat
         """
-        return cls(hdf5storage.loadmat(file_name, marshaller_collection=cls.__mc()))
+        return cls(hdf5storage.loadmat(file_name, marshaller_collection=cls.__mc()), **kwargs)
+
+
+def loadmat(file_name, path='/', **kwargs):
+    """Shortcut to MatStruct.loadmat
+
+    :param file_name: file name
+    :param path: path toread data from
+    :param kwargs: keyword passed to hdf5storage.loadmat
+    """
+    return  MatStruct.loadmat(file_name, path='/', **kwargs)
+
+
+def loadh5(file_name, path='/', **kwargs):
+    """Shortcut to MatStruct.loadh5
+
+    :param file_name: file name
+    :param path: path toread data from
+    :param kwargs: keyword passed to hdf5storage.loadmat
+    """
+    return  MatStruct.loadh5(file_name, path='/', **kwargs)
+
+
+def load(file_name, path='/', **kwargs):
+    """Load file, chooses automatically  between loadmat and loadh5 by file extension
+
+    :param file_name: file name
+    :param path: path toread data from
+    :param kwargs: keyword passed to hdf5storage.loadmat
+    """
+    root, ext = os.path.splitext(file_name)
+    if ext.lower() == '.mat':
+        load_func = MatStruct.loadmat
+    else:
+        load_func = MatStruct.loadh5
+    return load_func(file_name, path='/', **kwargs)
 
 
 if NETCDF4:

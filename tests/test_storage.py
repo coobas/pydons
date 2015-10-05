@@ -1,4 +1,4 @@
-from pydons import MatStruct
+from pydons import MatStruct, loadmat, loadh5, load
 import numpy as np
 import tempfile
 from pydons import _OrderedDict as OrderedDict
@@ -18,12 +18,14 @@ def test_h5_storage():
 
     with tempfile.NamedTemporaryFile(suffix=".h5") as tmpf:
         d.saveh5(tmpf.name)
-        dd = MatStruct.loadh5(tmpf.name)
 
-    assert isinstance(dd, MatStruct)
-    assert dd.field_a == field_a
-    assert dd.field_b == field_b
-    assert np.all(dd.field_c == field_c)
+        for load_func in (MatStruct.loadh5, loadh5, load):
+            dd = load_func(tmpf.name)
+
+            assert isinstance(dd, MatStruct)
+            assert dd.field_a == field_a
+            assert dd.field_b == field_b
+            assert np.all(dd.field_c == field_c)
 
 
 def test_loadh5():
@@ -47,15 +49,17 @@ def test_loadh5():
             fh.create_group('field_d')
             grp = fh['field_d']
             grp.create_dataset('array', data=d.field_d.array)
-        dd = MatStruct.loadh5(tmpf.name)
 
-    # TODO fails for upstream hdf5storage
-    assert isinstance(dd, MatStruct)
-    assert isinstance(dd.field_d, MatStruct)
-    # assert dd.field_a == field_a
-    # assert dd.field_b == field_b
-    assert np.all(dd.field_c == field_c)
-    assert np.all(dd.field_d.array == field_d.array)
+        for load_func in (MatStruct.loadh5, loadh5, load):
+            dd = load_func(tmpf.name)
+
+        # TODO fails for upstream hdf5storage
+        assert isinstance(dd, MatStruct)
+        assert isinstance(dd.field_d, MatStruct)
+        # assert dd.field_a == field_a
+        # assert dd.field_b == field_b
+        assert np.all(dd.field_c == field_c)
+        assert np.all(dd.field_d.array == field_d.array)
 
 
 def test_h5_storage_substruct():
@@ -87,12 +91,13 @@ def test_mat_storage():
 
     with tempfile.NamedTemporaryFile(suffix=".mat") as tmpf:
         d.savemat(tmpf.name)
-        dd = MatStruct.loadmat(tmpf.name)
+        for load_func in (MatStruct.loadh5, loadh5, load):
+            dd = load_func(tmpf.name)
 
-    assert isinstance(dd, MatStruct)
-    assert dd.field_a == field_a
-    assert dd.field_b == field_b
-    assert np.all(dd.field_c == field_c)
+            assert isinstance(dd, MatStruct)
+            assert dd.field_a == field_a
+            assert dd.field_b == field_b
+            assert np.all(dd.field_c == field_c)
 
 
 def test_dedict_h5():
