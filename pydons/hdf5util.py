@@ -63,7 +63,8 @@ class MatStructMarshaller(TypeMarshaller):
         # If the group doesn't exist, it needs to be created. If it
         # already exists but is not a group, it needs to be deleted
         # before being created.
-
+        if six.PY2 and not isinstance(name, unicode):
+            name = unicode(name)
         if name not in grp:
             grp.create_group(name)
         elif not isinstance(grp[name], h5py.Group):
