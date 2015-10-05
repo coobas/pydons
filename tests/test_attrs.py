@@ -12,13 +12,13 @@ def test_var_a():
         file_name = tmpf.name
         with h5py.File(file_name, 'w') as fh:
             dset = fh.create_dataset('r', data=d.r)
-            dset.attrs.create('a_text', 'text')
+            dset.attrs.create('a_text', 'text'.encode('utf8'))
             dset.attrs.create('a_num', 1)
             dset.attrs.create('a_arr', np.ones(3))
             dset.attrs.create('_hidden', True)
 
         fb = FileBrowser(file_name)
-        assert fb.r.attrs.a_text == 'text'
+        assert fb.r.attrs.a_text.decode('utf8') == u'text'
         assert fb.r.attrs.a_num == 1
         assert np.all(fb.r.attrs.a_arr == 1)
         assert fb.r.attrs['_hidden']

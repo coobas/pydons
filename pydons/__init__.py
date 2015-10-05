@@ -1,7 +1,7 @@
 '''Pydons is a collection of manipulation add-ons for hierarchichal numerical data.
 '''
 
-__version__ = '0.2.3'
+__version__ = '0.2.4'
 
 # import OrderedDict for Python < 2.7
 # In Python 2.6 or Jython 2.5, ordereddict must be installed
@@ -31,6 +31,7 @@ import h5py
 import os
 import sys
 import weakref
+import six
 
 
 class MatStruct(_OrderedDict):
@@ -63,7 +64,7 @@ class MatStruct(_OrderedDict):
     @classmethod
     def __is_valid_key(cls, key):
         '''Check if key is valid'''
-        if not isinstance(key, (str, unicode)):
+        if not isinstance(key, six.string_types):
             raise KeyError('Keys can be only strings')
         if not key:
             raise KeyError('Key cannot be empty')
@@ -74,8 +75,11 @@ class MatStruct(_OrderedDict):
         if any((not (ch.isalnum() or ch in '_') for ch in key[1:])):
             raise KeyError('Keys must be of alphanumeric characters or _')
         try:
-            key.decode('ascii')
-        except (UnicodeEncodeError, UnicodeDecodeError):
+            if six.PY2:
+                key.decode('ascii')
+            else:
+                bytes(key, 'ascii')
+        except (UnicodeEncodeError, UnicodeDecodeError, UnicodeError):
             raise KeyError('Keys must be ascii characters only')
         return True
 
@@ -247,7 +251,7 @@ class MatStruct(_OrderedDict):
                         res['diff_max'] = max(res['diff_max'], res[key])
                         res['diff_norm'] += res[key]
                         nnorm += 1
-                elif isinstance(self[key], (str, unicode)):
+                elif isinstance(self[key], six.string_types):
                     try:
                         if self[key] == str(other[key]):
                             res[key] = 0

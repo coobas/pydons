@@ -12,14 +12,14 @@ with open('README.rst') as file:
     long_description = file.read()
 
 setup(name='pydons',
-      version='0.2.3',
+      version='0.2.4',
       description='Python data manimulation add-ons',
       long_description=long_description,
       author='Jakub Urban',
       author_email='coobas at gmail dt com',
       url='https://bitbucket.org/urbanj/pydons',
       packages=['pydons'],
-      install_requires=['numpy', 'h5py>=2.1', 'hdf5storage'],
+      install_requires=['numpy', 'h5py>=2.1', 'hdf5storage', 'six'],
       extras_require={'netCDF4': ['netCDF4']},
       # requires=requires,
       license='MIT',
